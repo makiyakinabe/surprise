@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bouquet Collection</title>
+<style>
+  html,body{margin:0;height:100%;background:#07060b;overflow:hidden;touch-action:none}
+  canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+  #glow{filter:blur(7px) saturate(1.4);opacity:.6;mix-blend-mode:screen;pointer-events:none}
+  .ui{position:fixed;font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#d8cfee;letter-spacing:.08em}
+  #cap{left:0;right:0;bottom:14px;text-align:center;opacity:.6;pointer-events:none;transition:opacity 2s}
+  #btn{top:14px;right:14px;background:rgba(10,8,16,.6);border:1px solid #3d3552;color:#f1e6ff;padding:7px 14px;border-radius:999px;cursor:pointer}
+  #btn:hover,#btn:focus-visible{border-color:#f5a8cc;color:#fff;outline:none}
+  #tabs{position:fixed;top:14px;left:14px;right:150px;display:flex;flex-wrap:wrap;gap:6px}
+  #tabs button{font:inherit;background:rgba(10,8,16,.6);border:1px solid #2e2840;color:#b9aed3;padding:7px 12px;border-radius:999px;cursor:pointer;min-height:32px}
+  #tabs button:hover,#tabs button:focus-visible{color:#fff;border-color:#6d5f8f;outline:none}
+  #tabs button[aria-pressed=true]{color:#fff;border-color:#f5a8cc;background:rgba(245,168,204,.12)}
+  @media(max-width:520px){#tabs{right:14px;top:56px}#tabs button{padding:5px 10px;font-size:11px}#cap{font-size:10px}}
+</style>
+</head>
+<body>
+<canvas id="c" role="img" aria-label="Animated ASCII-art baby's breath bouquets in six colour versions, some with a round penguin peeking out"></canvas>
+<canvas id="glow" aria-hidden="true"></canvas>
+<nav class="ui" id="tabs" aria-label="Bouquet versions"></nav>
+<button class="ui" id="btn">✿ re-arrange</button>
+<div class="ui" id="cap">hover to ruffle · tap for sparkles · pat the bear</div>
+<script>
+(() => {
+  const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+  const gv = document.getElementById('glow'), gtx = gv.getContext('2d');
+  const FONT = 'ui-monospace,SFMono-Regular,Menlo,Consolas,"Courier New",monospace';
+  const HUES = [340, 325, 305, 280, 255, 215, 195, 168, 148, 52, 38, 22, 8];
+
+  let W, H, dpr, fs, cw, chh, cols, rows, S, bx, by;
+  let gch, gcol, gpri, stars = [], stems = [], parts = [];
+  let mx = -1e5, my = -1e5, last = 0, squishT = -10, bear = { x: 0, y: 0, r: 0 };
+  const PASTELS = [[348, 55], [12, 50], [28, 52], [44, 62], [95, 28], [150, 26], [200, 40], [230, 34], [268, 32], [300, 28]];
+  const FUR = [';', '+', '%', '%', '&', '#'];
+  const THEMES = {
+    plush: { label: 'plush', flowers: [[348, 55], [12, 50], [28, 52], [44, 62], [95, 28], [150, 26], [200, 40], [230, 34], [268, 32], [300, 28]],
+      white: 0.18, whiteC: [40, 45], l: [72, 12], back: { h: 105, s: 22, edge: [108, 26, 62] },
+      front: { pattern: 'pleat', h: 36, s: 32, edge: [40, 45, 92] }, ribbon: { h: 350, s: 50 },
+      bear: { body: [225, 8] } },
+    rainbow: { label: 'rainbow', flowers: [[340, 80], [325, 80], [305, 75], [280, 75], [255, 75], [215, 80], [195, 80], [168, 70], [148, 70], [52, 85], [38, 85], [22, 85], [8, 80]],
+      white: 0.12, whiteC: [0, 0], l: [62, 16], back: { h: 278, s: 45, edge: [282, 55, 62] },
+      front: { pattern: 'pleat', h: 342, s: 68, edge: [345, 80, 86] }, ribbon: { h: 26, s: 85 }, bear: null },
+    midnight: { label: 'midnight', flowers: [[220, 60], [235, 55], [250, 45], [200, 55], [265, 40]],
+      white: 0.35, whiteC: [210, 25], l: [58, 18], back: { h: 232, s: 40, edge: [222, 45, 62] },
+      front: { pattern: 'pleat', h: 222, s: 18, edge: [210, 30, 90] }, ribbon: { h: 212, s: 18 }, bear: null, moon: true },
+    strawberry: { label: 'strawberry milk', flowers: [[350, 72], [340, 62], [355, 78], [5, 66], [330, 52]],
+      white: 0.35, whiteC: [35, 55], l: [68, 14], back: { h: 345, s: 32, edge: [350, 50, 70] },
+      front: { pattern: 'gingham', h: 350, s: 68, edge: [0, 0, 95] }, ribbon: { h: 355, s: 78 },
+      bear: { body: [225, 8] } },
+    lavender: { label: 'lavender', flowers: [[270, 48], [262, 42], [282, 38], [252, 32], [292, 32]],
+      white: 0.15, whiteC: [270, 18], l: [66, 14], back: { h: 32, s: 24, edge: [34, 35, 60] },
+      front: { pattern: 'kraft', h: 30, s: 40, edge: [34, 45, 76] }, ribbon: { h: 28, s: 38 }, bear: null },
+    sunshine: { label: 'sunshine', flowers: [[48, 88], [42, 90], [54, 72], [35, 82], [205, 58]],
+      white: 0.3, whiteC: [55, 35], l: [64, 16], back: { h: 205, s: 45, edge: [200, 55, 70] },
+      front: { pattern: 'pleat', h: 210, s: 48, edge: [205, 60, 88] }, ribbon: { h: 46, s: 88 },
+      bear: { body: [225, 8] } },
+  };
+  let TH = THEMES.plush, seed = 20261122;
+
+
+  const mulberry = a => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+  const C = (h, s, l) => 'hsl(' + ((Math.round(h) % 360 + 360) % 360) + ',' + Math.round(s) + '%,' + (Math.round(clamp(l, 0, 97) / 3) * 3) + '%)';
+
+  // ---------- bouquet layout (units of S, relative to the binding point G) ----------
+  function build(seed) {
+    const R = mulberry(seed);
+    stems = [];
+    const N = 30;
+    for (let i = 0; i < N; i++) {
+      const u = ((i + R() * 0.9) / N) * 2 - 1;
+      const th = Math.sign(u) * Math.pow(Math.abs(u), 1.1) * 0.82;
+      const L = (0.1 + Math.pow(R(), 0.7) * 0.34) * (1 - 0.28 * Math.abs(th) / 0.82);
+      const white = R() < TH.white;
+      const [hue, sat0] = TH.flowers[Math.floor(R() * TH.flowers.length)];
+      const st = { th, L, ph: R() * 6.283, g: 105 + R() * 30, lines: [], flo: [] };
+      const spx = Math.sin(th) * L, spy = -Math.cos(th) * L;
+      st.lines.push([(R() - 0.5) * 0.03, 0.22, 0, 0, 0]);
+      st.lines.push([0, 0, spx, spy, 0]);
+      const k = 3 + Math.floor(R() * 3);
+      for (let b = 0; b < k; b++) {
+        const a = th + (R() - 0.5) * 1.5, bl = 0.06 + R() * 0.08;
+        const ex = spx + Math.sin(a) * bl, ey = spy - Math.cos(a) * bl;
+        st.lines.push([spx, spy, ex, ey, 1]);
+        const centers = [[ex, ey]];
+        const tw = 1 + Math.floor(R() * 3);
+        for (let w = 0; w < tw; w++) {
+          const a2 = a + (R() - 0.5) * 1.9, wl = 0.022 + R() * 0.04;
+          const cx = ex + Math.sin(a2) * wl, cy = ey - Math.cos(a2) * wl;
+          st.lines.push([ex, ey, cx, cy, 2]);
+          centers.push([cx, cy]);
+        }
+        for (const [cx, cy] of centers) {
+          const mk = (x, y, bud) => st.flo.push({ x, y, s: R(), bud,
+            h: white ? TH.whiteC[0] : hue + (R() - 0.5) * 12, sat: white ? TH.whiteC[1] : sat0 + R() * 15,
+            l: white ? 88 + R() * 6 : TH.l[0] + R() * TH.l[1], ph: R() * 6.283, px: 0, py: 0 });
+          // a small puffy cluster of tiny florets, like real baby's breath
+          for (let f = 0, n = 3 + Math.floor(R() * 4); f < n; f++) {
+            const ang = R() * 6.283, rr = Math.sqrt(R()) * 0.016;
+            mk(cx + Math.cos(ang) * rr, cy + Math.sin(ang) * rr * 0.8 - 0.004, false);
+          }
+          if (R() < 0.5) mk(cx + (R() - 0.5) * 0.04, cy - 0.018 - R() * 0.01, true);
+        }
+      }
+      stems.push(st);
+    }
+    stems.sort((a, b) => b.L - a.L); // shorter stems sit lower and in front
+  }
+
+  // ---------- sizing ----------
+  function resize() {
+    dpr = Math.min(2, window.devicePixelRatio || 1);
+    W = innerWidth; H = innerHeight;
+    cv.width = W * dpr; cv.height = H * dpr;
+    gv.width = Math.ceil(W / 2); gv.height = Math.ceil(H / 2);
+    fs = clamp(Math.round(Math.min(W, H * 1.15) / 92), 8, 13);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.font = fs + 'px ' + FONT;
+    cw = ctx.measureText('M').width; chh = Math.round(fs * 1.08);
+    cols = Math.ceil(W / cw); rows = Math.ceil(H / chh);
+    gch = new Array(cols * rows); gcol = new Array(cols * rows); gpri = new Float32Array(cols * rows);
+    S = Math.min(W / 1.12, H * 0.88);
+    bx = W / 2; by = H / 2 + 0.2 * S;
+    stars = [];
+    const R = mulberry(7);
+    const n = Math.floor(cols * rows * 0.018);
+    for (let i = 0; i < n; i++) stars.push({ c: Math.floor(R() * cols), r: Math.floor(R() * rows), ph: R() * 6.28, sp: 0.4 + R() * 1.6 });
+  }
+
+  // ---------- grid helpers ----------
+  function put(c, r, ch, col, p) {
+    if (c < 0 || r < 0 || c >= cols || r >= rows) return;
+    const i = r * cols + c;
+    if (p < gpri[i]) return;
+    gch[i] = ch; gcol[i] = col; gpri[i] = p;
+  }
+  const putPx = (x, y, ch, col, p) => put(Math.floor(x / cw), Math.floor(y / chh), ch, col, p);
+  function lineChar(dx, dy) {
+    let a = Math.atan2(-dy, dx) * 57.2958; if (a < 0) a += 180;
+    return a < 22.5 || a >= 157.5 ? '-' : a < 67.5 ? '/' : a < 112.5 ? '|' : '\\';
+  }
+  function linePx(x1, y1, x2, y2, col, p) {
+    const dx = x2 - x1, dy = y2 - y1, ch = lineChar(dx, dy);
+    const n = Math.ceil(Math.max(Math.abs(dx) / cw, Math.abs(dy) / chh) * 1.3) + 1;
+    for (let i = 0; i <= n; i++) { const t = i / n; putPx(x1 + dx * t, y1 + dy * t, ch, col, p); }
+  }
+  // iterate cells over a rel-unit bounding box; fn(x, y) returns nothing, writes itself
+  function scan(x0, y0, x1, y1, fn) {
+    const c0 = Math.max(0, Math.floor((bx + x0 * S) / cw)), c1 = Math.min(cols - 1, Math.ceil((bx + x1 * S) / cw));
+    const r0 = Math.max(0, Math.floor((by + y0 * S) / chh)), r1 = Math.min(rows - 1, Math.ceil((by + y1 * S) / chh));
+    for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++)
+      fn(((c + 0.5) * cw - bx) / S, ((r + 0.5) * chh - by) / S, c, r);
+  }
+
+  // ---------- particles ----------
+  function burst(x, y, n) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * 6.283, v = 40 + Math.random() * 170;
+      parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 50, life: 0, max: 0.9 + Math.random() * 1.3, h: TH.flowers[Math.floor(Math.random() * TH.flowers.length)][0], drift: false });
+    }
+  }
+
+  // ---------- frame ----------
+  function frame(now) {
+    requestAnimationFrame(frame);
+    if (now - last < 33) return;
+    const dt = Math.min(0.1, (now - last) / 1000); last = now;
+    const t = now / 1000;
+    gch.fill(''); gpri.fill(-1);
+    const cellY = chh / S;
+
+    // stars
+    for (const s of stars) {
+      const v = 0.5 + 0.5 * Math.sin(t * s.sp + s.ph);
+      put(s.c, s.r, v > 0.93 ? '+' : v > 0.75 ? '*' : '.', C(255, 35, 12 + v * 38), 0);
+    }
+
+    // crescent moon
+    if (TH.moon) {
+      const mxp = W * 0.16, myp = H * 0.2, mr = 0.07 * S;
+      const c0 = Math.floor((mxp - mr) / cw), c1 = Math.ceil((mxp + mr) / cw), r0 = Math.floor((myp - mr) / chh), r1 = Math.ceil((myp + mr) / chh);
+      for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
+        const px = (c + 0.5) * cw, py = (r + 0.5) * chh;
+        const d1 = Math.hypot(px - mxp, py - myp), d2 = Math.hypot(px - mxp - mr * 0.45, py - myp + mr * 0.2);
+        if (d1 < mr && d2 > mr * 0.82) put(c, r, d2 > mr * 1.05 ? '@' : '%', C(50, 60, 70 + 18 * (1 - d1 / mr)), 1);
+      }
+    }
+
+    // back wrapping sheet
+    scan(-0.52, -0.44, 0.52, 0.26, (x, y, c, r) => {
+      const hw = 0.04 + 0.44 * clamp((0.25 - y) / 0.6, 0, 1);
+      const top = -0.31 - 0.09 * (x / 0.48) ** 2 + 0.012 * Math.sin(x * 55 + t * 0.8);
+      if (y <= top || y >= 0.25 || Math.abs(x) >= hw) return;
+      const u = x / hw, v = Math.cos(u * Math.PI * 4.5);
+      if (y - top < cellY * 1.1) return put(c, r, '~', C(...TH.back.edge), 10);
+      if (v < -0.35) return;
+      const ch = v > 0.82 ? lineChar(x, y - 0.3) : v > 0.25 ? ':' : '.';
+      put(c, r, ch, C(TH.back.h, TH.back.s, 20 + 22 * (v + 1) / 2), 10);
+    });
+
+    // stems + florets
+    const gust = 0.6 * Math.sin(t * 0.37) + 0.4 * Math.sin(t * 0.93 + 1);
+    const HR = 0.15 * S;
+    for (const st of stems) {
+      const A = 0.03 * Math.sin(t * 0.75 + st.ph) + 0.02 * gust;
+      const tr = (x, y) => {
+        if (y >= 0) return [bx + x * S, by + y * S];
+        const a = A * Math.min(1.2, -y / 0.3), ca = Math.cos(a), sa = Math.sin(a);
+        return [bx + (x * ca - y * sa) * S, by + (x * sa + y * ca) * S];
+      };
+      for (const [x1, y1, x2, y2, lv] of st.lines) {
+        const p1 = tr(x1, y1), p2 = tr(x2, y2);
+        linePx(p1[0], p1[1], p2[0], p2[1], C(st.g, 42, 28 + lv * 6), 20);
+      }
+      for (const f of st.flo) {
+        let [px, py] = tr(f.x, f.y);
+        px += Math.sin(t * 2.3 + f.ph) * 0.0016 * S;
+        const dx = px - mx, dy = py - my, d = Math.hypot(dx, dy);
+        let hv = 0;
+        if (d < HR) { hv = (1 - d / HR) ** 2; px += dx / (d + 1) * hv * 0.04 * S; py += dy / (d + 1) * hv * 0.04 * S; }
+        f.px = px; f.py = py;
+        const tw = 0.5 + 0.5 * Math.sin(t * 1.7 + f.ph);
+        const pc = C(f.h, f.sat, f.l + tw * 8 - 5 + hv * 14);
+        if (f.bud) { putPx(px, py, tw > 0.6 ? '*' : '.', pc, 29); continue; }
+        // tiny round florets: fuller ones '@', smaller 'o', newest '*'
+        const e = f.s * 0.8 + tw * 0.2 + hv * 0.5;
+        putPx(px, py, e > 0.62 ? '@' : e > 0.3 ? 'o' : '*', pc, 30 + e * 5);
+      }
+    }
+
+    const B = TH.bear, hx = 0;
+    const shade = (dx, dy, d2) => clamp(-0.4 * dx - 0.5 * dy + 0.77 * Math.sqrt(1 - d2), 0, 1);
+    if (B) {
+      // round penguin peeking out (original character)
+      const sk = t - squishT, sq = Math.max(0, 1 - sk / 0.7), wob = sq * Math.cos(sk * 14);
+      const sqx = 1 + 0.14 * wob, sqy = 1 - 0.12 * wob;
+      const hy = -0.15 + 0.005 * Math.sin(t * 1.3), RX = 0.1 * sqx, RY = 0.11 * sqy;
+      const [bh, bs] = B.body;
+      bear = { x: bx + hx * S, y: by + hy * S, r: 0.105 * S };
+      scan(hx - 0.15, hy - 0.16, hx + 0.15, hy + 0.14, (x, y, c, r) => {
+        const fx = x - hx, fy = y - hy, dx = fx / RX, dy = fy / RY, d2 = dx * dx + dy * dy;
+        if (d2 >= 1.35) return;
+        if (d2 >= 1) return put(c, r, ' ', '#000', 43);
+        const L = 0.35 + 0.65 * shade(dx, dy, d2);
+        const face = Math.hypot(fx + 0.03 * sqx, fy - 0.004) < 0.036 || Math.hypot(fx - 0.03 * sqx, fy - 0.004) < 0.036 ||
+          (fx / (0.056 * sqx)) ** 2 + ((fy - 0.045) / 0.058) ** 2 < 1;
+        if (face) return put(c, r, L > 0.62 ? '%' : '+', C(40, 30, 76 + 18 * L), 46);
+        put(c, r, FUR[Math.min(5, (L * 5.4) | 0)], C(bh, bs, 12 + 30 * L), 46);
+      });
+      // beak
+      scan(hx - 0.03, hy + 0.005, hx + 0.03, hy + 0.04, (x, y, c, r) => {
+        const fx = x - hx, fy = y - hy - 0.01, w = 0.012 * (1 - fy / 0.024);
+        if (fy >= 0 && fy < 0.024 && Math.abs(fx) < w) put(c, r, fy < 0.01 ? 'V' : 'v', C(30, 92, 60), 47);
+      });
+      const face = (x, y, ch, col) => putPx(bx + x * S, by + y * S, ch, col, 48);
+      const blink = (t % 4.7) < 0.14 || sq > 0.2;
+      face(hx - 0.03 * sqx, hy - 0.004, blink ? '-' : ' ', C(bh, 20, 30));
+      face(hx + 0.03 * sqx, hy - 0.004, blink ? '-' : ' ', C(bh, 20, 30));
+      face(hx - 0.058 * sqx, hy + 0.026, '*', C(350, 82, 74));
+      face(hx + 0.058 * sqx, hy + 0.026, '*', C(350, 82, 74));
+      face(hx + 0.004, hy - RY - 0.008, '~', C(bh, bs, 55));
+      // knitted scarf
+      const sy0 = hy + 0.062 * sqy, sy1 = hy + 0.082 * sqy;
+      scan(hx - 0.12, sy0, hx + 0.12, sy1, (x, y, c, r) => {
+        const dx = (x - hx) / RX, dy = (y - hy) / RY;
+        if (y < sy0 || y > sy1 || dx * dx + dy * dy >= 1.02) return;
+        put(c, r, c % 2 ? '=' : '#', C(TH.ribbon.h, TH.ribbon.s, (c % 4 < 2 ? 58 : 70)), 49);
+      });
+    } else bear = { x: -1e5, y: -1e5, r: 0 };
+
+    // front wrapping cone (oatmeal)
+    scan(-0.33, -0.09, 0.33, 0.26, (x, y, c, r) => {
+      const hw = 0.035 + 0.275 * Math.pow(clamp((0.25 - y) / 0.3, 0, 1), 0.9);
+      const top = -0.05 - 0.018 * Math.cos(x / 0.31 * Math.PI * 3.5);
+      if (y <= top || y >= 0.25 || Math.abs(x) >= hw) return;
+      const u = x / hw, v = Math.cos(u * Math.PI * 2.5 + 0.4), sh = (0.5 + 0.5 * v) * (1 - 0.35 * u * u);
+      if (y - top < cellY * 1.1) return put(c, r, '~', C(...TH.front.edge), 50);
+      const ch = v > 0.93 ? lineChar(x, y - 0.32) : sh > 0.6 ? '=' : sh > 0.32 ? ':' : '.';
+      const F = TH.front;
+      if (F.pattern === 'gingham') {
+        const k2 = (((c / 2) | 0) % 2) + (r % 2), m = 0.8 + 0.2 * sh;
+        return put(c, r, k2 === 2 ? '#' : k2 === 1 ? '+' : '.', C(F.h, k2 ? F.s : 15, (k2 === 2 ? 56 : k2 === 1 ? 70 : 88) * m), 50);
+      }
+      if (F.pattern === 'kraft') return put(c, r, ch, C(F.h, F.s, 28 + 34 * sh), 50);
+      put(c, r, ch, C(F.h, F.s, 40 + 42 * sh), 50);
+    });
+
+    // penguin flippers on the rim and the scarf's tail
+    if (B) {
+      for (const sd of [-1, 1]) {
+        const px0 = hx + sd * 0.098, py0 = -0.062, rot = sd * 0.5, co = Math.cos(rot), si = Math.sin(rot);
+        scan(px0 - 0.05, py0 - 0.05, px0 + 0.05, py0 + 0.05, (x, y, c, r) => {
+          const lx = (x - px0) * co + (y - py0) * si, ly = -(x - px0) * si + (y - py0) * co;
+          const dx = lx / 0.022, dy = ly / 0.044, d2 = dx * dx + dy * dy;
+          if (d2 >= 1.4) return;
+          if (d2 >= 1) return put(c, r, ' ', '#000', 54);
+          const L = 0.4 + 0.6 * shade(dx, dy, d2);
+          put(c, r, FUR[Math.min(5, (L * 6) | 0)], C(B.body[0], B.body[1], 13 + 30 * L), 55);
+        });
+      }
+      const tx0 = hx + 0.03, ty0 = -0.15 + 0.08;
+      scan(tx0 - 0.005, ty0, tx0 + 0.03, ty0 + 0.05, (x, y, c, r) => {
+        if (x < tx0 || x > tx0 + 0.022 || y < ty0 || y > ty0 + 0.045) return;
+        const end = y > ty0 + 0.038;
+        put(c, r, end ? '"' : (c % 2 ? '=' : '#'), C(TH.ribbon.h, TH.ribbon.s, end ? 76 : 62), 56);
+      });
+    }
+
+    // stem ends poking out
+    for (let j = -3; j <= 3; j++) linePx(bx + j * 0.008 * S, by + 0.243 * S, bx + j * 0.012 * S, by + 0.285 * S, C(118, 40, 36), 52);
+
+    // ribbon band
+    scan(-0.2, 0.12, 0.2, 0.16, (x, y, c, r) => {
+      const hw = 0.035 + 0.275 * Math.pow(clamp((0.25 - y) / 0.3, 0, 1), 0.9);
+      if (Math.abs(x) >= hw || y < 0.122 || y > 0.155) return;
+      put(c, r, '=', C(TH.ribbon.h, TH.ribbon.s, 70 + 12 * Math.sin(x * 90 + t)), 60);
+    });
+    // bow loops
+    for (const sd of [-1, 1]) {
+      const cx = sd * 0.068, cy = 0.118, rx = 0.066, ry = 0.034, rot = -sd * 0.32, co = Math.cos(rot), si = Math.sin(rot);
+      const wob = 1 + 0.04 * Math.sin(t * 1.4 + sd);
+      scan(cx - 0.08, cy - 0.06, cx + 0.08, cy + 0.06, (x, y, c, r) => {
+        const lx = (x - cx) * co + (y - cy) * si, ly = -(x - cx) * si + (y - cy) * co;
+        const q = (lx / (rx * wob)) ** 2 + (ly / ry) ** 2;
+        if (q < 1) put(c, r, q > 0.45 ? ':' : '-', C(TH.ribbon.h - 2, TH.ribbon.s * 0.85, 56 + 12 * (1 - q)), 60);
+      });
+      for (let k = 0; k < 64; k++) {
+        const a = k / 64 * 6.283;
+        const ex = rx * wob * Math.cos(a), ey = ry * Math.sin(a);
+        const x = cx + ex * co - ey * si, y = cy + ex * si + ey * co;
+        const tx = -rx * Math.sin(a), ty = ry * Math.cos(a);
+        putPx(bx + x * S, by + y * S, lineChar(tx * co - ty * si, tx * si + ty * co), C(TH.ribbon.h, TH.ribbon.s * 1.15, 84), 61);
+      }
+      // tails
+      let px = bx + sd * 0.012 * S, py = by + 0.14 * S;
+      for (let k = 1; k <= 14; k++) {
+        const s = k / 14;
+        const nx = bx + sd * (0.012 + 0.065 * s + 0.012 * Math.sin(s * 6 + t * 1.3)) * S, ny = by + (0.14 + 0.15 * s) * S;
+        linePx(px, py, nx, ny, C(TH.ribbon.h, TH.ribbon.s, 78 - 16 * s), 62);
+        linePx(px + sd * cw, py, nx + sd * cw, ny, C(TH.ribbon.h - 4, TH.ribbon.s * 0.8, 60 - 12 * s), 61);
+        px = nx; py = ny;
+      }
+    }
+    // knot
+    scan(-0.03, 0.1, 0.03, 0.16, (x, y, c, r) => {
+      const d = Math.hypot(x, (y - 0.138) * 1.2);
+      if (d < 0.02) put(c, r, d < 0.011 ? '@' : 'O', C(TH.ribbon.h, TH.ribbon.s * 1.15, 86 - d * 900), 63);
+    });
+
+    // ambient drifting sparkles from the flowers
+    if (Math.random() < dt * 5 && stems.length) {
+      const st = stems[Math.floor(Math.random() * stems.length)], f = st.flo[Math.floor(Math.random() * st.flo.length)];
+      parts.push({ x: f.px, y: f.py, vx: (Math.random() - 0.5) * 14, vy: -18 - Math.random() * 22, life: 0, max: 2.5 + Math.random() * 2, h: f.h, drift: true });
+    }
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const p = parts[i];
+      p.life += dt;
+      if (p.life > p.max) { parts.splice(i, 1); continue; }
+      if (!p.drift) { p.vx *= 0.95; p.vy = p.vy * 0.95 + 30 * dt; }
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      const q = 1 - p.life / p.max;
+      if (p.heart) { const col = C(350, 70, 55 + q * 30); putPx(p.x, p.y, '<', col, 70); putPx(p.x + cw, p.y, '3', col, 70); continue; }
+      putPx(p.x, p.y, p.drift ? (q > 0.5 ? '*' : '.') : (q > 0.66 ? '*' : q > 0.33 ? '+' : '.'), C(p.h, 85, 45 + q * 45), 70);
+    }
+
+    // paint
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = '#07060b'; ctx.fillRect(0, 0, W, H);
+    ctx.font = fs + 'px ' + FONT; ctx.textBaseline = 'top';
+    const groups = new Map();
+    for (let i = 0; i < gch.length; i++) {
+      if (!gch[i]) continue;
+      let g = groups.get(gcol[i]); if (!g) groups.set(gcol[i], g = []);
+      g.push(i);
+    }
+    for (const [col, g] of groups) {
+      ctx.fillStyle = col;
+      for (const i of g) ctx.fillText(gch[i], (i % cols) * cw, ((i / cols) | 0) * chh);
+    }
+    gtx.clearRect(0, 0, gv.width, gv.height);
+    gtx.drawImage(cv, 0, 0, gv.width, gv.height);
+  }
+
+  // ---------- interaction ----------
+  addEventListener('pointermove', e => { mx = e.clientX; my = e.clientY; });
+  addEventListener('pointerleave', () => { mx = my = -1e5; });
+  cv.addEventListener('pointerdown', e => {
+    mx = e.clientX; my = e.clientY;
+    if (Math.hypot(e.clientX - bear.x, e.clientY - bear.y) < bear.r * 1.15) {
+      squishT = performance.now() / 1000;
+      for (let i = 0; i < 9; i++) parts.push({ x: bear.x + (Math.random() - 0.5) * bear.r * 1.6, y: bear.y - bear.r * 0.8, vx: (Math.random() - 0.5) * 40, vy: -30 - Math.random() * 40, life: 0, max: 1.6 + Math.random(), drift: true, heart: true });
+    } else burst(e.clientX, e.clientY, 36);
+  });
+  document.getElementById('btn').addEventListener('click', () => { seed = (Math.random() * 1e9) | 0; build(seed); burst(bx, by - 0.3 * S, 60); });
+  const tabs = document.getElementById('tabs'), cap = document.getElementById('cap');
+  tabs.innerHTML = Object.entries(THEMES).map(([k, v]) => `<button data-k="${k}" aria-pressed="false">${v.label}</button>`).join('');
+  function setTheme(k, fromHash) {
+    if (!THEMES[k]) k = 'plush';
+    TH = THEMES[k];
+    for (const b of tabs.children) b.setAttribute('aria-pressed', String(b.dataset.k === k));
+    cap.textContent = 'hover to ruffle · tap for sparkles' + (TH.bear ? ' · pat the penguin' : '');
+    cap.style.opacity = '.6';
+    build(seed);
+    if (!fromHash && location.hash !== '#' + k) history.replaceState(null, '', '#' + k);
+  }
+  tabs.addEventListener('click', e => { const b = e.target.closest('button'); if (b) { setTheme(b.dataset.k); burst(bx, by - 0.3 * S, 40); } });
+  addEventListener('hashchange', () => setTheme(location.hash.slice(1), true));
+  addEventListener('resize', resize);
+  setTimeout(() => { document.getElementById('cap').style.opacity = '.3'; }, 7000);
+
+  resize();
+  setTheme(location.hash.slice(1), true);
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
