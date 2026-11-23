@@ -11,4 +11,6 @@ Open `index.html` in any browser. Six versions, switchable from the tabs (or lin
 - **lavender** – purples in kraft paper
 - **sunshine** – yellows in sky-blue paper, penguin in a yellow scarf
 
-Hover to ruffle the flowers, tap for sparkles, pat the penguin, and hit **re-arrange** for a new layout.
+Hover to ruffle the flowers, tap for sparkles, and hit **re-arrange** for a new layout.
+
+Tap the penguin for a surprise: a sealed envelope drops in, and opening it reveals a heart-shaped love letter with a different sweet message each time.
