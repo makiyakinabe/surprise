@@ -20,6 +20,31 @@
   #tabs button[aria-pressed=true]{color:#fff;border-color:#f5a8cc;background:rgba(245,168,204,.12)}
   @media(max-width:520px){#tabs{right:14px;top:56px}#tabs button{padding:5px 10px;font-size:11px}#cap{font-size:10px}}
 
+
+  /* loading screen */
+  #loader{position:fixed;inset:0;z-index:20;background:radial-gradient(ellipse at 50% 40%,#1a1426 0%,#07060b 70%);display:grid;place-items:center;align-content:center;gap:20px;padding:24px;transition:opacity .8s ease,visibility .8s}
+  #loader.done{opacity:0;visibility:hidden}
+  #loader h1{margin:0;font:700 clamp(30px,8vw,46px)/1.05 Caveat,"Segoe Print","Bradley Hand",cursive;color:#f7cfe0;text-align:center;text-wrap:balance}
+  .track{position:relative;width:min(86vw,500px);height:140px}
+  .bar{position:absolute;left:0;right:84px;bottom:24px;height:12px;border-radius:999px;background:#1d1829;box-shadow:inset 0 0 0 1px #33294a;overflow:hidden}
+  .fill{height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,#f7b8d2,#ea7a98 60%,#ffd38a);box-shadow:0 0 12px #ea7a98}
+  .runner{position:absolute;left:0;bottom:34px;width:64px;margin-left:-32px}
+  .runner svg{display:block;width:100%;height:auto;animation:bob .32s ease-in-out infinite alternate;transform-origin:50% 100%}
+  .runner .footL{animation:stepA .32s ease-in-out infinite alternate;transform-origin:22px 58px}
+  .runner .footR{animation:stepA .32s ease-in-out infinite alternate-reverse;transform-origin:38px 58px}
+  .runner .flipL{animation:flap .16s ease-in-out infinite alternate;transform-origin:14px 32px}
+  .runner .flipR{animation:flap .16s ease-in-out infinite alternate-reverse;transform-origin:46px 32px}
+  @keyframes bob{from{transform:translateY(0) rotate(6deg)}to{transform:translateY(-5px) rotate(9deg)}}
+  @keyframes stepA{from{transform:rotate(-22deg)}to{transform:rotate(22deg)}}
+  @keyframes flap{from{transform:rotate(-14deg)}to{transform:rotate(22deg)}}
+  .runner.hop svg{animation:hop .55s cubic-bezier(.3,1.6,.5,1) 1}
+  @keyframes hop{0%{transform:translateY(0)}45%{transform:translateY(-26px) rotate(-6deg)}100%{transform:translateY(0)}}
+  .goal{position:absolute;right:0;bottom:0;width:88px;transform-origin:50% 100%}
+  .goal svg{display:block;width:100%;height:auto}
+  .goal.bloom{animation:bloom .7s cubic-bezier(.3,1.7,.5,1) 1}
+  @keyframes bloom{0%{transform:scale(1)}40%{transform:scale(1.25) rotate(-4deg)}100%{transform:scale(1.1)}}
+  #lpct{font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.08em;color:#b3a6cf;text-align:center}
+  @media (prefers-reduced-motion:reduce){#loader *{animation:none!important}}
   /* surprise letter */
   #letter{position:fixed;inset:0;display:none;place-items:center;align-content:center;gap:18px;background:rgba(5,4,10,.6);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:10;cursor:pointer;animation:lfade .3s ease}
   #letter.show{display:grid}
@@ -50,6 +75,47 @@
 <nav class="ui" id="tabs" aria-label="Bouquet versions"></nav>
 <button class="ui" id="btn">✿ re-arrange</button>
 <div class="ui" id="cap">hover to ruffle · tap for sparkles · pat the bear</div>
+<div id="loader" role="status" aria-live="polite">
+  <h1>a little surprise for you</h1>
+  <div class="track">
+    <div class="bar"><div class="fill"></div></div>
+    <div class="goal" aria-hidden="true">
+      <svg viewBox="0 0 72 84">
+        <path d="M4 30 Q36 18 68 30 L41 80 L31 80Z" fill="#a9b893"/>
+        <g stroke="#6f8f58" stroke-width="1.2" fill="none"><path d="M36 64 L22 26"/><path d="M36 64 L36 18"/><path d="M36 64 L50 26"/><path d="M36 64 L14 34"/><path d="M36 64 L58 34"/></g>
+        <g>
+          <circle cx="22" cy="24" r="3.2" fill="#f7c4d4"/><circle cx="27" cy="20" r="2.6" fill="#fff4e0"/><circle cx="18" cy="29" r="2.4" fill="#c9b8f0"/>
+          <circle cx="33" cy="15" r="3" fill="#ffe08a"/><circle cx="38" cy="18" r="2.6" fill="#f7c4d4"/><circle cx="36" cy="11" r="2.2" fill="#fff4e0"/>
+          <circle cx="46" cy="21" r="3" fill="#b8e3d0"/><circle cx="51" cy="26" r="2.6" fill="#f2b3a0"/><circle cx="44" cy="27" r="2.2" fill="#fff4e0"/>
+          <circle cx="13" cy="35" r="2.6" fill="#ffe08a"/><circle cx="59" cy="33" r="2.8" fill="#c9b8f0"/><circle cx="29" cy="27" r="2.4" fill="#b8d6f2"/>
+          <circle cx="55" cy="38" r="2" fill="#fff4e0"/><circle cx="17" cy="40" r="2" fill="#f7c4d4"/><circle cx="41" cy="13" r="1.8" fill="#f2b3a0"/>
+        </g>
+        <path d="M14 40 Q36 30 58 40 L41 80 L31 80Z" fill="#ece0c9"/>
+        <path d="M14 40 Q36 30 58 40" fill="none" stroke="#fff7e8" stroke-width="1.4"/>
+        <g fill="#e58aa3"><ellipse cx="29" cy="62" rx="7" ry="4" transform="rotate(-20 29 62)"/><ellipse cx="43" cy="62" rx="7" ry="4" transform="rotate(20 43 62)"/><path d="M34 63 L29 76 L32 75 L36 64Z"/><path d="M38 63 L43 76 L40 75 L36 64Z"/></g>
+        <circle cx="36" cy="62.5" r="2.6" fill="#f3a9bd"/>
+      </svg>
+    </div>
+    <div class="runner" aria-hidden="true">
+      <svg viewBox="0 0 60 64">
+        <ellipse class="footL" cx="22" cy="59" rx="6" ry="3" fill="#f39a3d"/>
+        <ellipse class="footR" cx="38" cy="59" rx="6" ry="3" fill="#f39a3d"/>
+        <ellipse class="flipL" cx="12" cy="38" rx="4" ry="10" fill="#22212b"/>
+        <ellipse class="flipR" cx="48" cy="38" rx="4" ry="10" fill="#22212b"/>
+        <ellipse cx="30" cy="34" rx="19" ry="23" fill="#22212b"/>
+        <path d="M30 6 q3-4 6-1" stroke="#22212b" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <g fill="#fbf4ea"><circle cx="24" cy="26" r="8.5"/><circle cx="36" cy="26" r="8.5"/><ellipse cx="30" cy="41" rx="12.5" ry="15"/></g>
+        <circle cx="25" cy="25" r="2.3" fill="#141318"/><circle cx="35" cy="25" r="2.3" fill="#141318"/>
+        <circle cx="25.8" cy="24.2" r=".7" fill="#fff"/><circle cx="35.8" cy="24.2" r=".7" fill="#fff"/>
+        <path d="M26.5 29.5 L33.5 29.5 L30 34.5Z" fill="#f39a3d"/>
+        <circle cx="20" cy="31" r="2.6" fill="#f59ab0" opacity=".85"/><circle cx="40" cy="31" r="2.6" fill="#f59ab0" opacity=".85"/>
+        <rect x="14" y="40" width="32" height="5.5" rx="2.5" fill="#e46a85"/>
+        <rect x="37" y="43" width="5.5" height="11" rx="2" fill="#d65774" transform="rotate(-14 39 44)"/>
+      </svg>
+    </div>
+  </div>
+  <div id="lpct">loading your surprise… 0%</div>
+</div>
 <div id="letter" role="dialog" aria-modal="true" aria-label="A surprise letter from the penguin" tabindex="-1">
   <div class="stage">
     <div class="heart">
@@ -440,6 +506,28 @@
   }
 
 
+
+  // ---------- loading screen ----------
+  {
+    const loader = document.getElementById('loader'), bar = loader.querySelector('.bar'), fillEl = loader.querySelector('.fill');
+    const runner = loader.querySelector('.runner'), goal = loader.querySelector('.goal'), lpct = document.getElementById('lpct');
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches, DUR = reduce ? 700 : 3400;
+    let t0 = null;
+    const tick = ts => {
+      if (t0 === null) t0 = ts;
+      const k = Math.min(1, (ts - t0) / DUR);
+      const e = clamp(k - 0.55 * Math.sin(k * Math.PI * 6) / (Math.PI * 6), 0, 1); // uneven but always moving forward
+      fillEl.style.width = (e * 100) + '%';
+      runner.style.left = (e * bar.clientWidth) + 'px';
+      lpct.textContent = 'loading your surprise… ' + Math.round(e * 100) + '%';
+      if (k < 1) return requestAnimationFrame(tick);
+      lpct.textContent = 'ta-da! ♡';
+      runner.classList.add('hop'); goal.classList.add('bloom');
+      setTimeout(() => { loader.classList.add('done'); burst(bx, by - 0.3 * S, 70); }, reduce ? 200 : 900);
+    };
+    requestAnimationFrame(tick);
+  }
+
   // ---------- surprise letter ----------
   const MSGS = [
     'i love you the most',
@@ -501,7 +589,7 @@
     if (!THEMES[k]) k = 'plush';
     TH = THEMES[k];
     for (const b of tabs.children) b.setAttribute('aria-pressed', String(b.dataset.k === k));
-    cap.textContent = 'hover to ruffle · tap for sparkles' + (TH.bear ? ' · tap the penguin for a letter' : '');
+    cap.textContent = 'hover to ruffle · tap for hearts' + (TH.bear ? ' · tap the penguin for a letter' : '');
     cap.style.opacity = '.6';
     build(seed);
     if (!fromHash && location.hash !== '#' + k) history.replaceState(null, '', '#' + k);

@@ -2,6 +2,8 @@
 
 Animated ASCII-art baby's breath bouquets, drawn in the browser with a canvas.
 
+It opens with a loading bar: a little penguin runs along it to a bouquet waiting at the finish, hops, and the surprise appears.
+
 Open `index.html` in any browser. Six versions, switchable from the tabs (or link straight to one with `#plush`, `#rainbow`, `#midnight`, `#strawberry`, `#lavender`, `#sunshine`):
 
 - **plush** – dusty pastels, oatmeal and sage wrap, a round penguin in a pink scarf
