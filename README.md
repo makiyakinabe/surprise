@@ -1,5 +1,7 @@
 # Surprise
 
+**Open it here: https://makiyakinabe.github.io/surprise/**
+
 Animated ASCII-art baby's breath bouquets, drawn in the browser with a canvas.
 
 It opens with a loading bar: a little penguin runs along it to a bouquet waiting at the finish, hops, and the surprise appears.
